@@ -1,168 +1,87 @@
 version: "2"
 services:
-
   zookeeper-1:
-    container_name: zookeeper-1    
-    networks: ["vnet"]
-    hostname: zookeeper-1.vnet
-    image: smizy/zookeeper:3.4-alpine
+    image: zookeeper
+    restart: always
+    ports:
+      - 2181
     environment:
-      - SERVICE_2181_NAME=zookeeper
-      - SERVICE_2888_IGNORE=true
-      - SERVICE_3888_IGNORE=true
-      
-    command: -server 1 3 vnet
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: server.1=zookeeper-1:2888:3888 server.2=zookeeper-2:2888:3888 server.3=zookeeper-3:2888:3888
 
   zookeeper-2:
-    container_name: zookeeper-2    
-    networks: ["vnet"]
-    hostname: zookeeper-2.vnet
-    image: smizy/zookeeper:3.4-alpine
+    image: zookeeper
+    restart: always
+    ports:
+      - 2181
     environment:
-      - SERVICE_2181_NAME=zookeeper
-      - SERVICE_2888_IGNORE=true
-      - SERVICE_3888_IGNORE=true
-      
-    command: -server 2 3 vnet
+      ZOO_MY_ID: 2
+      ZOO_SERVERS: server.1=zookeeper-1:2888:3888 server.2=zookeeper-2:2888:3888 server.3=zookeeper-3:2888:3888
 
   zookeeper-3:
-    container_name: zookeeper-3    
-    networks: ["vnet"]
-    hostname: zookeeper-3.vnet
-    image: smizy/zookeeper:3.4-alpine
+    image: zookeeper
+    restart: always
+    ports:
+      - 2181
     environment:
-      - SERVICE_2181_NAME=zookeeper
-      - SERVICE_2888_IGNORE=true
-      - SERVICE_3888_IGNORE=true
-      
-    command: -server 3 3 vnet
+      ZOO_MY_ID: 3
+      ZOO_SERVERS: server.1=zookeeper-1:2888:3888 server.2=zookeeper-2:2888:3888 server.3=zookeeper-3:2888:3888
 
-  journalnode-1:
-    container_name: journalnode-1
-    networks: ["vnet"]
-    hostname: journalnode-1.vnet
-    image: smizy/hadoop-base:2.7.3-alpine
-    expose: [8480, 8485]
+  namenode:
+    image: bde2020/hadoop-namenode:1.1.0-hadoop2.7.1-java8
+    container_name: namenode
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
     environment:
-      - SERVICE_8485_NAME=journalnode
-      - SERVICE_8480_IGNORE=true
-      - HADOOP_ZOOKEEPER_QUORUM=zookeeper-1.vnet:2181,zookeeper-2.vnet:2181,zookeeper-3.vnet:2181 
-      - HADOOP_HEAPSIZE=1000
-      
-    command: journalnode
+      - CLUSTER_NAME=test
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
+      - YARN_CONF_yarn_log___aggregation___enable=true
+      - YARN_CONF_yarn_resourcemanager_recovery_enabled=true
+      - YARN_CONF_yarn_resourcemanager_store_class=org.apache.hadoop.yarn.server.resourcemanager.recovery.FileSystemRMStateStore
+      - YARN_CONF_yarn_resourcemanager_fs_state___store_uri=/rmstate
+      - YARN_CONF_yarn_nodemanager_remote___app___log___dir=/app-logs
+      - YARN_CONF_yarn_log_server_url=http://historyserver:8188/applicationhistory/logs/
+      - YARN_CONF_yarn_timeline___service_enabled=true
+      - YARN_CONF_yarn_timeline___service_generic___application___history_enabled=true
+      - YARN_CONF_yarn_resourcemanager_system___metrics___publisher_enabled=true
+      - YARN_CONF_yarn_resourcemanager_hostname=resourcemanager
+      - YARN_CONF_yarn_timeline___service_hostname=historyserver
+      - YARN_CONF_yarn_resourcemanager_address=resourcemanager:8032
+      - YARN_CONF_yarn_resourcemanager_scheduler_address=resourcemanager:8030
+      - YARN_CONF_yarn_resourcemanager_resource__tracker_address=resourcemanager:8031
+      - CORE_CONF_hadoop_proxyuser_hbase_hosts=*
+      - CORE_CONF_hadoop_proxyuser_hbase_groups=*
+      - HDFS_CONF_dfs_permissions_enabled=false
 
-  journalnode-2:
-    container_name: journalnode-2
-    networks: ["vnet"]
-    hostname: journalnode-2.vnet
-    image: smizy/hadoop-base:2.7.3-alpine
-    expose: [8480, 8485]
+  datanode:
+    image: bde2020/hadoop-datanode:1.1.0-hadoop2.7.1-java8
+    container_name: datanode
+    depends_on: 
+      - namenode
+    volumes:
+      - hadoop_datanode:/hadoop/dfs/data
     environment:
-      - SERVICE_8485_NAME=journalnode
-      - SERVICE_8480_IGNORE=true
-      - HADOOP_ZOOKEEPER_QUORUM=zookeeper-1.vnet:2181,zookeeper-2.vnet:2181,zookeeper-3.vnet:2181 
-      - HADOOP_HEAPSIZE=1000
-      
-    command: journalnode
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
+      - YARN_CONF_yarn_log___aggregation___enable=true
+      - YARN_CONF_yarn_resourcemanager_recovery_enabled=true
+      - YARN_CONF_yarn_resourcemanager_store_class=org.apache.hadoop.yarn.server.resourcemanager.recovery.FileSystemRMStateStore
+      - YARN_CONF_yarn_resourcemanager_fs_state___store_uri=/rmstate
+      - YARN_CONF_yarn_nodemanager_remote___app___log___dir=/app-logs
+      - YARN_CONF_yarn_log_server_url=http://historyserver:8188/applicationhistory/logs/
+      - YARN_CONF_yarn_timeline___service_enabled=true
+      - YARN_CONF_yarn_timeline___service_generic___application___history_enabled=true
+      - YARN_CONF_yarn_resourcemanager_system___metrics___publisher_enabled=true
+      - YARN_CONF_yarn_resourcemanager_hostname=resourcemanager
+      - YARN_CONF_yarn_timeline___service_hostname=historyserver
+      - YARN_CONF_yarn_resourcemanager_address=resourcemanager:8032
+      - YARN_CONF_yarn_resourcemanager_scheduler_address=resourcemanager:8030
+      - YARN_CONF_yarn_resourcemanager_resource__tracker_address=resourcemanager:8031
+      - CORE_CONF_hadoop_proxyuser_hbase_hosts=*
+      - CORE_CONF_hadoop_proxyuser_hbase_groups=*
+      - HDFS_CONF_dfs_permissions_enabled=false
 
-  journalnode-3:
-    container_name: journalnode-3
-    networks: ["vnet"]
-    hostname: journalnode-3.vnet
-    image: smizy/hadoop-base:2.7.3-alpine
-    expose: [8480, 8485]
-    environment:
-      - SERVICE_8485_NAME=journalnode
-      - SERVICE_8480_IGNORE=true
-      - HADOOP_ZOOKEEPER_QUORUM=zookeeper-1.vnet:2181,zookeeper-2.vnet:2181,zookeeper-3.vnet:2181 
-      - HADOOP_HEAPSIZE=1000
-      
-    command: journalnode
-
-  namenode-1:
-    container_name: namenode-1
-    networks: ["vnet"]
-    hostname: namenode-1.vnet
-    image: smizy/hadoop-base:2.7.3-alpine 
-    expose: ["8020"]
-    ports:  ["50070"]
-    environment:
-      - SERVICE_8020_NAME=namenode
-      - SERVICE_50070_IGNORE=true
-      - HADOOP_ZOOKEEPER_QUORUM=zookeeper-1.vnet:2181,zookeeper-2.vnet:2181,zookeeper-3.vnet:2181 
-      - HADOOP_HEAPSIZE=1000
-      
-    entrypoint: entrypoint.sh
-    command: namenode-1
-
-  namenode-2:
-    container_name: namenode-2
-    networks: ["vnet"]
-    hostname: namenode-2.vnet
-    image: smizy/hadoop-base:2.7.3-alpine 
-    expose: ["8020"]
-    ports:  ["50070"]
-    environment:
-      - SERVICE_8020_NAME=namenode
-      - SERVICE_50070_IGNORE=true
-      - HADOOP_ZOOKEEPER_QUORUM=zookeeper-1.vnet:2181,zookeeper-2.vnet:2181,zookeeper-3.vnet:2181 
-      - HADOOP_HEAPSIZE=1000
-      
-    entrypoint: entrypoint.sh
-    command: namenode-2
-
-  datanode-1:
-    container_name: datanode-1
-    networks: ["vnet"]
-    hostname: datanode-1.vnet
-    image: smizy/hadoop-base:2.7.3-alpine
-    expose: ["50010", "50020", "50075"]
-    environment:
-      - SERVICE_50010_NAME=datanode
-      - SERVICE_50020_IGNORE=true
-      - SERVICE_50075_IGNORE=true
-      - HADOOP_ZOOKEEPER_QUORUM=zookeeper-1.vnet:2181,zookeeper-2.vnet:2181,zookeeper-3.vnet:2181 
-      - HADOOP_HEAPSIZE=1000
-      
-    entrypoint: entrypoint.sh
-    command: datanode
-
-  datanode-2:
-    container_name: datanode-2
-    networks: ["vnet"]
-    hostname: datanode-2.vnet
-    image: smizy/hadoop-base:2.7.3-alpine
-    expose: ["50010", "50020", "50075"]
-    environment:
-      - SERVICE_50010_NAME=datanode
-      - SERVICE_50020_IGNORE=true
-      - SERVICE_50075_IGNORE=true
-      - HADOOP_ZOOKEEPER_QUORUM=zookeeper-1.vnet:2181,zookeeper-2.vnet:2181,zookeeper-3.vnet:2181 
-      - HADOOP_HEAPSIZE=1000
-      
-    entrypoint: entrypoint.sh
-    command: datanode
-
-  datanode-3:
-    container_name: datanode-3
-    networks: ["vnet"]
-    hostname: datanode-3.vnet
-    image: smizy/hadoop-base:2.7.3-alpine
-    expose: ["50010", "50020", "50075"]
-    environment:
-      - SERVICE_50010_NAME=datanode
-      - SERVICE_50020_IGNORE=true
-      - SERVICE_50075_IGNORE=true
-      - HADOOP_ZOOKEEPER_QUORUM=zookeeper-1.vnet:2181,zookeeper-2.vnet:2181,zookeeper-3.vnet:2181 
-      - HADOOP_HEAPSIZE=1000
-      
-    entrypoint: entrypoint.sh
-    command: datanode
-
-  hmaster-1:
-    container_name: hmaster-1
-    networks: ["vnet"]
-    hostname: hmaster-1.vnet
+  hmaster:
+    container_name: hmaster
     image: smizy/hbase:1.2.4-alpine
     expose: [16000]
     ports:  [16010]
@@ -170,72 +89,32 @@ services:
     environment:
       - SERVICE_16000_NAME=hmaster
       - SERVICE_16010_IGNORE=true
-      - HBASE_ZOOKEEPER_QUORUM=zookeeper-1.vnet:2181,zookeeper-2.vnet:2181,zookeeper-3.vnet:2181 
-      
+      - HADOOP_VERSION=2.7.1
+      - HADOOP_NAMENODE1_HOSTNAME=namenode
+      - HBASE_HMASTER1_HOSTNAME=hmaster
+      - HBASE_ROOT_DIR=hdfs://namenode:8020/hbase
+      - HBASE_REGIONSERVER1_HOSTNAME=regionserver
+      - HBASE_ZOOKEEPER_QUORUM=zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181 
     volumes_from:
-      - namenode-1
+      - namenode
     command: hmaster-1
 
-  hmaster-2:
-    container_name: hmaster-2
-    networks: ["vnet"]
-    hostname: hmaster-2.vnet
-    image: smizy/hbase:1.2.4-alpine
-    expose: [16000]
-    ports:  [16010]
-    depends_on: ["zookeeper-1"]
-    environment:
-      - SERVICE_16000_NAME=hmaster
-      - SERVICE_16010_IGNORE=true
-      - HBASE_ZOOKEEPER_QUORUM=zookeeper-1.vnet:2181,zookeeper-2.vnet:2181,zookeeper-3.vnet:2181 
-      
-    volumes_from:
-      - namenode-2
-    command: hmaster-2
-
-  regionserver-1:
-    container_name: regionserver-1
-    networks: ["vnet"]
-    hostname: regionserver-1.vnet
+  regionserver:
+    container_name: regionserver
     image: smizy/hbase:1.2.4-alpine
     expose: [16020, 16030]
     depends_on: ["zookeeper-1"]
     environment:
       - SERVICE_16020_NAME=regionserver
       - SERVICE_16030_IGNORE=true
-      - HBASE_ZOOKEEPER_QUORUM=zookeeper-1.vnet:2181,zookeeper-2.vnet:2181,zookeeper-3.vnet:2181 
-      
+      - HADOOP_VERSION=2.7.1
+      - HADOOP_NAMENODE1_HOSTNAME=namenode
+      - HBASE_HMASTER1_HOSTNAME=hmaster
+      - HBASE_ROOT_DIR=hdfs://namenode:8020/hbase
+      - HBASE_REGIONSERVER1_HOSTNAME=regionserver
+      - HBASE_ZOOKEEPER_QUORUM=zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181 
     command: regionserver
 
-  regionserver-2:
-    container_name: regionserver-2
-    networks: ["vnet"]
-    hostname: regionserver-2.vnet
-    image: smizy/hbase:1.2.4-alpine
-    expose: [16020, 16030]
-    depends_on: ["zookeeper-1"]
-    environment:
-      - SERVICE_16020_NAME=regionserver
-      - SERVICE_16030_IGNORE=true
-      - HBASE_ZOOKEEPER_QUORUM=zookeeper-1.vnet:2181,zookeeper-2.vnet:2181,zookeeper-3.vnet:2181 
-      
-    command: regionserver
-
-  regionserver-3:
-    container_name: regionserver-3
-    networks: ["vnet"]
-    hostname: regionserver-3.vnet
-    image: smizy/hbase:1.2.4-alpine
-    expose: [16020, 16030]
-    depends_on: ["zookeeper-1"]
-    environment:
-      - SERVICE_16020_NAME=regionserver
-      - SERVICE_16030_IGNORE=true
-      - HBASE_ZOOKEEPER_QUORUM=zookeeper-1.vnet:2181,zookeeper-2.vnet:2181,zookeeper-3.vnet:2181 
-      
-    command: regionserver
-
-networks:
-  vnet:
-    external:
-      name: vnet 
+volumes:
+    hadoop_namenode:
+    hadoop_datanode:
